@@ -1,2 +1,2 @@
-NB_TASKS = 9
-IMAGES = ('images/ex2_1.jpg', 'images/ex2_2.jpg')
+NB_TASKS = 4
+IMAGES = ('images/ex1_1.jpeg', 'images/ex1_2.jpg')
