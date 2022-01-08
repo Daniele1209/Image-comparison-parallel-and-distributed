@@ -4,6 +4,7 @@ import cv2
 import properties
 import os
 import threads
+import distributed
 
 
 # delete the previous patches from dir
@@ -63,7 +64,9 @@ if __name__ == '__main__':
     # cv2.imshow('image_2', image_2)
     # cv2.waitKey(0)
 
-    threads.main_threads()
+    #threads.main_threads()
+    distributed.main_distributed()
+
 
 
 
