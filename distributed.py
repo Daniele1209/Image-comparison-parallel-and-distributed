@@ -8,8 +8,9 @@ import numpy as np
 import properties
 
 # mpi run command
-# mpiexec -n 10 python main.py
+# mpiexec -n 10 python distributed.py
 diff_patches_list = {}
+
 
 def node_function(idx, patch1, patch2):
     print(f"Node {idx} started ...")
@@ -21,7 +22,6 @@ def node_function(idx, patch1, patch2):
     (score, diff) = structural_similarity(patch1_gray, patch2_gray, full=True)
     print(f"Image similarity: {score}")
     # optimisation
-    print(properties.NEEDED_IMAGE_SIZE)
     if (properties.NEEDED_IMAGE_SIZE <= 300000 and score > 0.9) or \
             (properties.NEEDED_IMAGE_SIZE > 300000 and score > 0.99):
         return patch1
@@ -54,40 +54,14 @@ def node_function(idx, patch1, patch2):
     return filled_after
 
 
-def main_distributed():
-    print('Main distributed')
-    isFirst = True
-    start_time = time.time()
-
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-
-    # master process
-    if rank == 0:
-        for index in range(1, properties.NB_TASKS + 1):
-            patch_image1 = cv2.imread("patches/1_patch_" + str(index) + ".jpg")
-            patch_image2 = cv2.imread("patches/2_patch_" + str(index) + ".jpg")
-            comm.send((patch_image1, patch_image2), dest=index, tag=0)
-
-            for rank_idx in range(1, properties.NB_TASKS + 1):
-                data = comm.recv(source=rank_idx, tag=0)
-                diff_patches_list[rank_idx-1] = data
-
-    else:
-        data = comm.recv(source=0, tag=0)
-        returned_patch = node_function(rank, data[0], data[1])
-        comm.send(returned_patch, dest=0, tag=0)
-
-    comm.Disconnect()
-    MPI.Finalize()
-
+def reconstruct_final_image(start_time):
     # put patches together to form the initial image
+    isFirst = True
     final_image = None
     nr_rows_cols = int(math.sqrt(properties.NB_TASKS))
 
     for idx_v in range(0, nr_rows_cols):
-        image_index = int(idx_v * (math.sqrt(properties.NB_TASKS)-1) + idx_v)
+        image_index = int(idx_v * (math.sqrt(properties.NB_TASKS) - 1) + idx_v)
 
         # patch_image = cv2.imread("patches/1_patch_" + str(image_index) + ".jpg")
         mask = diff_patches_list[image_index]
@@ -95,8 +69,7 @@ def main_distributed():
         # h_img[mask != 255] = [0, 0, 255]
 
         for idx_h in range(1, nr_rows_cols):
-
-            image_index = int(idx_v * (math.sqrt(properties.NB_TASKS)-1) + idx_h + idx_v)
+            image_index = int(idx_v * (math.sqrt(properties.NB_TASKS) - 1) + idx_h + idx_v)
             # patch_image_1 = cv2.imread("patches/1_patch_" + str(image_index) + ".jpg")
             mask_1 = diff_patches_list[image_index]
             # h_img_1 = cv2.bitwise_and(patch_image_1, patch_image_1, mask=mask_1)
@@ -110,7 +83,42 @@ def main_distributed():
         else:
             final_image = cv2.vconcat([final_image, mask])
 
-    print(f"\nThreads done: {'{:.2f}'.format(time.time() - start_time)} s")
+    print(f"\nMPI done: {'{:.2f}'.format(time.time() - start_time)} s")
     cv2.imshow('final_image', final_image)
-    cv2.imwrite('results/final_image.jpg', final_image)
+    cv2.imwrite('C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/results/final_image.jpg',
+                final_image)
     cv2.waitKey(0)
+
+
+def main_distributed():
+    print('Main distributed')
+
+    start_time = time.time()
+
+    rank = MPI.COMM_WORLD.Get_rank()
+    size = MPI.COMM_WORLD.Get_size()
+    print(rank, size)
+
+    # master process
+    if rank == 0:
+        for index in range(1, properties.NB_TASKS + 1):
+            patch_image1 = cv2.imread("C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/patches/1_patch_" + str(index-1) + ".jpg")
+            patch_image2 = cv2.imread("C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/patches/2_patch_" + str(index-1) + ".jpg")
+            MPI.COMM_WORLD.send((patch_image1, patch_image2), dest=index, tag=0)
+
+        for rank_idx in range(1, properties.NB_TASKS + 1):
+            data = MPI.COMM_WORLD.recv(source=rank_idx, tag=0)
+            diff_patches_list[rank_idx-1] = data
+
+        reconstruct_final_image(start_time)
+
+    else:
+        data = MPI.COMM_WORLD.recv(source=0, tag=0)
+        returned_patch = node_function(rank, data[0], data[1])
+        MPI.COMM_WORLD.send(returned_patch, dest=0, tag=0)
+
+    MPI.Finalize()
+
+
+if __name__ == '__main__':
+    main_distributed()

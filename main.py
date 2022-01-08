@@ -4,7 +4,6 @@ import cv2
 import properties
 import os
 import threads
-import distributed
 
 
 # delete the previous patches from dir
@@ -36,7 +35,7 @@ def split_into_cells(image_1, image_2):
     mCols = int(math.sqrt(properties.NB_TASKS))
     sizeY, sizeX, ch = image_1.shape
 
-    clean_directory()
+    # clean_directory()
     idx = 0
     for i in range(0, nRows):
         for j in range(0, mCols):
@@ -64,10 +63,4 @@ if __name__ == '__main__':
     # cv2.imshow('image_2', image_2)
     # cv2.waitKey(0)
 
-    #threads.main_threads()
-    distributed.main_distributed()
-
-
-
-
-
+    threads.main_threads()
