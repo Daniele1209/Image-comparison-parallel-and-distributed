@@ -5,6 +5,7 @@ import properties
 import os
 import threads
 
+
 # delete the previous patches from dir
 def clean_directory():
     patch_files = glob.glob('patches/*.jpg')
@@ -23,6 +24,7 @@ def down_scale(image_1, image_2):
     elif image_1.shape < image_2.shape:
         image_2 = cv2.resize(image_2, (im1_width, im1_height))
 
+    properties.NEEDED_IMAGE_SIZE = image_1.shape[0] * image_1.shape[1]
     return image_1, image_2
 
 
