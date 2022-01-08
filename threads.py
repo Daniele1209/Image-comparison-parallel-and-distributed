@@ -4,15 +4,15 @@ import cv2
 import properties
 import copy
 from threading import Lock
+import time
 
 diff_patches_list = {}
 # define a mutex for writing in list
 mutex = Lock()
 
+
 def thread_function(idx, patch1, patch2):
-    print(idx)
-    print(patch1.shape)
-    print(patch2.shape)
+    print(f"Thread {idx} started ...")
     difference = cv2.subtract(patch1, patch2)
 
     Conv_hsv_Gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
@@ -27,15 +27,17 @@ def thread_function(idx, patch1, patch2):
     diff_patches_list[idx] = mask
     mutex.release()
 
+
 def main_threads():
     print('Main thread')
     isFirst = True
     threads = []
+    start_time = time.time()
 
     for index in range(properties.NB_TASKS):
         patch_image1 = cv2.imread("patches/1_patch_" + str(index) + ".jpg")
         patch_image2 = cv2.imread("patches/2_patch_" + str(index) + ".jpg")
-        difference = cv2.subtract(patch_image1, patch_image2)
+        # difference = cv2.subtract(patch_image1, patch_image2)
 
         x = threading.Thread(target=thread_function, args=(index, patch_image1, patch_image2,))
         threads.append(x)
@@ -71,6 +73,7 @@ def main_threads():
         else:
             final_image = cv2.vconcat([final_image, h_img])
 
+    print(f"\nThreads done: {'{:.2f}'.format(time.time() - start_time)} s")
     cv2.imshow('final_image', final_image)
     cv2.imwrite('results/final_image.jpg', final_image)
     cv2.waitKey(0)
