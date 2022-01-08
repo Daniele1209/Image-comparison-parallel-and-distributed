@@ -1,6 +1,8 @@
 import math
 import threading
 import cv2
+
+import main
 import properties
 import copy
 from threading import Lock
@@ -11,6 +13,7 @@ from skimage.metrics import structural_similarity
 diff_patches_list = {}
 # define a mutex for writing in list
 mutex = Lock()
+needed_image_size = 0
 
 
 def thread_function2(idx, patch1, patch2):
@@ -21,11 +24,10 @@ def thread_function2(idx, patch1, patch2):
 
     # Compute SSIM between two images
     (score, diff) = structural_similarity(patch1_gray, patch2_gray, full=True)
-    print(f"Image similarity: {score}")
+    print(f"Thread {idx} - patch similarity: {score}")
     # optimisation
-    print(properties.NEEDED_IMAGE_SIZE)
-    if (properties.NEEDED_IMAGE_SIZE <= 300000 and score > 0.9) or \
-            (properties.NEEDED_IMAGE_SIZE > 300000 and score > 0.99):
+    if (needed_image_size <= 300000 and score > 0.9) or \
+            (needed_image_size > 300000 and score > 0.99):
         mutex.acquire()
         diff_patches_list[idx] = patch1
         mutex.release()
@@ -49,9 +51,6 @@ def thread_function2(idx, patch1, patch2):
     for c in contours:
         area = cv2.contourArea(c)
         if area > 40:
-            x, y, w, h = cv2.boundingRect(c)
-            # cv2.rectangle(before, (x, y), (x + w, y + h), (36, 255, 12), 2)
-            # cv2.rectangle(after, (x, y), (x + w, y + h), (36, 255, 12), 2)
             cv2.drawContours(mask, [c], 0, (0, 255, 0), -1)
             cv2.drawContours(filled_after, [c], 0, (0, 255, 0), -1)
 
@@ -83,6 +82,8 @@ def main_threads():
     print('Main thread')
     isFirst = True
     threads = []
+    global needed_image_size
+    needed_image_size = main.getNeededImageSize()
     start_time = time.time()
 
     for index in range(properties.NB_TASKS):

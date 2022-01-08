@@ -5,6 +5,8 @@ from mpi4py import MPI
 import cv2
 from skimage.metrics import structural_similarity
 import numpy as np
+
+import main
 import properties
 
 # mpi run command
@@ -20,10 +22,10 @@ def node_function(idx, patch1, patch2):
 
     # Compute SSIM between two images
     (score, diff) = structural_similarity(patch1_gray, patch2_gray, full=True)
-    print(f"Image similarity: {score}")
+    print(f"Node {idx} - patch similarity: {score}")
     # optimisation
-    if (properties.NEEDED_IMAGE_SIZE <= 300000 and score > 0.9) or \
-            (properties.NEEDED_IMAGE_SIZE > 300000 and score > 0.99):
+    if (main.getNeededImageSize() <= 300000 and score > 0.9) or \
+            (main.getNeededImageSize() > 300000 and score > 0.99):
         return patch1
 
     # The diff image contains the actual image differences between the two images
@@ -44,37 +46,26 @@ def node_function(idx, patch1, patch2):
     for c in contours:
         area = cv2.contourArea(c)
         if area > 40:
-            x, y, w, h = cv2.boundingRect(c)
-            # cv2.rectangle(before, (x, y), (x + w, y + h), (36, 255, 12), 2)
-            # cv2.rectangle(after, (x, y), (x + w, y + h), (36, 255, 12), 2)
             cv2.drawContours(mask, [c], 0, (0, 255, 0), -1)
             cv2.drawContours(filled_after, [c], 0, (0, 255, 0), -1)
 
-    # add the difference to the list
+    # return the patch with the differences highlighted
     return filled_after
 
 
 def reconstruct_final_image(start_time):
-    # put patches together to form the initial image
+    # put patches together to form the result image
     isFirst = True
     final_image = None
     nr_rows_cols = int(math.sqrt(properties.NB_TASKS))
 
     for idx_v in range(0, nr_rows_cols):
         image_index = int(idx_v * (math.sqrt(properties.NB_TASKS) - 1) + idx_v)
-
-        # patch_image = cv2.imread("patches/1_patch_" + str(image_index) + ".jpg")
         mask = diff_patches_list[image_index]
-        # h_img = cv2.bitwise_and(patch_image, patch_image, mask=mask)
-        # h_img[mask != 255] = [0, 0, 255]
 
         for idx_h in range(1, nr_rows_cols):
             image_index = int(idx_v * (math.sqrt(properties.NB_TASKS) - 1) + idx_h + idx_v)
-            # patch_image_1 = cv2.imread("patches/1_patch_" + str(image_index) + ".jpg")
             mask_1 = diff_patches_list[image_index]
-            # h_img_1 = cv2.bitwise_and(patch_image_1, patch_image_1, mask=mask_1)
-            # h_img_1[mask_1 != 255] = [0, 0, 255]
-
             mask = cv2.hconcat([mask, mask_1])
 
         if isFirst:
@@ -85,25 +76,22 @@ def reconstruct_final_image(start_time):
 
     print(f"\nMPI done: {'{:.2f}'.format(time.time() - start_time)} s")
     cv2.imshow('final_image', final_image)
-    cv2.imwrite('C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/results/final_image.jpg',
-                final_image)
+    cv2.imwrite('results/final_image.jpg', final_image)
     cv2.waitKey(0)
 
 
 def main_distributed():
-    print('Main distributed')
-
-    start_time = time.time()
-
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()
     print(rank, size)
 
     # master process
     if rank == 0:
+        print("Main distributed")
+        start_time = time.time()
         for index in range(1, properties.NB_TASKS + 1):
-            patch_image1 = cv2.imread("C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/patches/1_patch_" + str(index-1) + ".jpg")
-            patch_image2 = cv2.imread("C:/Users/S/Desktop/Prog-par-distrib/Image-comparison-parallel-and-distributed/patches/2_patch_" + str(index-1) + ".jpg")
+            patch_image1 = cv2.imread("patches/1_patch_" + str(index-1) + ".jpg")
+            patch_image2 = cv2.imread("patches/2_patch_" + str(index-1) + ".jpg")
             MPI.COMM_WORLD.send((patch_image1, patch_image2), dest=index, tag=0)
 
         for rank_idx in range(1, properties.NB_TASKS + 1):
@@ -113,6 +101,7 @@ def main_distributed():
         reconstruct_final_image(start_time)
 
     else:
+        # workers
         data = MPI.COMM_WORLD.recv(source=0, tag=0)
         returned_patch = node_function(rank, data[0], data[1])
         MPI.COMM_WORLD.send(returned_patch, dest=0, tag=0)
