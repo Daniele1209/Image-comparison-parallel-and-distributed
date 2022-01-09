@@ -1,3 +1,3 @@
-IMPLEMENTATION = "threaded"
+IMPLEMENTATION = "distributed"
 NB_TASKS = 4
-IMAGES = ('images/ex4_1.jpg', 'images/ex4_2.jpg')
+IMAGES = ('images/ex2_1.jpg', 'images/ex2_2.jpg')

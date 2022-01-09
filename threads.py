@@ -26,7 +26,7 @@ def thread_function2(idx, patch1, patch2):
     (score, diff) = structural_similarity(patch1_gray, patch2_gray, full=True)
     print(f"Thread {idx} - patch similarity: {score}")
     # optimisation
-    if (needed_image_size <= 300000 and score > 0.9) or \
+    if (needed_image_size <= 300000 and score > 0.91) or \
             (needed_image_size > 300000 and score > 0.99):
         mutex.acquire()
         diff_patches_list[idx] = patch1
@@ -126,7 +126,8 @@ def main_threads():
         else:
             final_image = cv2.vconcat([final_image, mask])
 
-    print(f"\nThreads done: {'{:.2f}'.format(time.time() - start_time)} s")
+    print(f"\nThreads done\n- image size (no. of pixels): {needed_image_size}\n"
+          f"- time elapsed: {'{:.2f}'.format(time.time() - start_time)} s")
     cv2.imshow('final_image', final_image)
     cv2.imwrite('results/final_image.jpg', final_image)
     cv2.waitKey(0)

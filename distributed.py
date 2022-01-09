@@ -12,6 +12,7 @@ import properties
 # mpi run command
 # mpiexec -n 10 python distributed.py
 diff_patches_list = {}
+needed_image_size = 0
 
 
 def node_function(idx, patch1, patch2):
@@ -24,7 +25,7 @@ def node_function(idx, patch1, patch2):
     (score, diff) = structural_similarity(patch1_gray, patch2_gray, full=True)
     print(f"Node {idx} - patch similarity: {score}")
     # optimisation
-    if (main.getNeededImageSize() <= 300000 and score > 0.9) or \
+    if (main.getNeededImageSize() <= 300000 and score > 0.91) or \
             (main.getNeededImageSize() > 300000 and score > 0.99):
         return patch1
 
@@ -74,7 +75,8 @@ def reconstruct_final_image(start_time):
         else:
             final_image = cv2.vconcat([final_image, mask])
 
-    print(f"\nMPI done: {'{:.2f}'.format(time.time() - start_time)} s")
+    print(f"\nMPI done\n- image size (no. of pixels): {needed_image_size}\n"
+          f"- time elapsed: {'{:.2f}'.format(time.time() - start_time)} s")
     cv2.imshow('final_image', final_image)
     cv2.imwrite('results/final_image.jpg', final_image)
     cv2.waitKey(0)
@@ -88,6 +90,8 @@ def main_distributed():
     # master process
     if rank == 0:
         print("Main distributed")
+        global needed_image_size
+        needed_image_size = main.getNeededImageSize()
         start_time = time.time()
         for index in range(1, properties.NB_TASKS + 1):
             patch_image1 = cv2.imread("patches/1_patch_" + str(index-1) + ".jpg")
