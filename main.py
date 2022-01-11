@@ -1,3 +1,4 @@
+# Team work by: Mihalache Stefan Cristian & Mos Daniele
 import glob
 import math
 import cv2
